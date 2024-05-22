@@ -1,0 +1,68 @@
+#include <DHT.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
+#define DHTPIN D4       // Pin for DHT11
+#define DS18B20_PIN D3  // Pin for DS18B20
+#define PIR_PIN D7      // Pin for PIR sensor
+#define TRIG_PIN D5     // Pin for HC-SR04 trigger
+#define ECHO_PIN D6     // Pin for HC-SR04 echo
+#define BUZZER_PIN D8   // Pin for buzzer
+
+DHT dht(DHTPIN, DHT11); // Define DHT11 object
+OneWire oneWire(DS18B20_PIN);
+DallasTemperature DS18B20(&oneWire);
+
+void setup() {
+  Serial.begin(9600);
+  dht.begin();
+  DS18B20.begin();
+  pinMode(PIR_PIN, INPUT);
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  pinMode(BUZZER_PIN, OUTPUT); // Set the buzzer pin as an output
+}
+
+void loop() {
+  float temperature = dht.readTemperature();
+  float humidity = dht.readHumidity();
+  DS18B20.requestTemperatures();
+  float ds_temperature = DS18B20.getTempCByIndex(0);
+  
+  int pir_value = digitalRead(PIR_PIN);
+  
+  // Read ultrasonic sensor
+  float distance = getDistance();
+  
+  // Send sensor data over serial port
+  Serial.print(temperature);
+  Serial.print(",");
+  Serial.print(humidity);
+  Serial.print(",");
+  Serial.print(ds_temperature);
+  Serial.print(",");
+  Serial.print(pir_value);
+  Serial.print(",");
+  Serial.println(distance);
+  
+  // Check conditions to trigger the buzzer
+  if (ds_temperature > 36 || pir_value == LOW) {
+    digitalWrite(BUZZER_PIN, HIGH); // Turn on the buzzer
+  } else {
+    digitalWrite(BUZZER_PIN, LOW); // Turn off the buzzer
+  }
+  
+  delay(1000);
+}
+
+float getDistance() {
+  digitalWrite(TRIG_PIN, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
+
+  long duration = pulseIn(ECHO_PIN, HIGH);
+  float distance = (duration * 0.034 / 2); // Speed of sound in air is approximately 0.034 cm/μs
+  return distance;
+}
